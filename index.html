@@ -513,7 +513,7 @@ tr.drillrow .l2{padding-left:22px;color:var(--ink2)}
 <b>자금(주요 지표)</b> — 원화 자금·외화·담보 여력은 현금수지 원장(RawData)의 [현금 및 원화예수금(대신증권 계좌 제외)]·[외화예수금]·[주식담보대출 가능 금액] 열을 그대로 사용 — 카드의 현재값은 원장 최신 일자, 추정 라인은 주 단위 버킷. 외화는 해외 거래처(Aladdin·Calypso) 지급 예정분이라 운영자금으로 계산하지 않음.<br>
 <b>유동화 필요 시점</b> = [원화 + 담보 여력]이 0 밑으로 내려가는 시점(일 단위 원장 기준). 수일 내 회복되는 일시 부족은 별도 표기하고, 구조적 부족 시작 시점을 한계로 표시. 수주 반영은 영업 파이프라인의 확실·유력 등급을 확률가중해 더한 값. 담보 약정 한도 80억 · 2026-12 담보대출 전액 상환 후 한도 회복(재인출) 계획이 원장에 반영되어 있음.<br>
 <b>전량 유동화 한계 · 추가 필요 자금</b> = 즉시현금+투자자산(주식·채권)을 전량 매도한다고 가정한 잔액이 0 밑으로 내려가는 첫 달과, 18개월 내 최저잔고의 부족분(확실·유력 확률가중 기준).<br>
-<b>고정비 커버율</b> = 향후 6개월 확정 입금 ÷ 같은 기간 인건비+판관비.<br>
+<b>고정비 커버율</b> = 향후 6개월 확정 순매출(매출 − 매입) ÷ 같은 기간 인건비+판관비. 매입(외주·라이선스 등 매출 대응 지출)을 차감한 기준이며, 12개월 수치를 참고로 병기.<br>
 <b>투자</b> — 평가금액은 전일 종가 × 수량(주식·채권). 30기 진행 당기손익 = 실현+배당·이자(07-31 확정) + 진행 평가(현재가 실시간). 올해 수익률 = 매월 (가격변동+실현+배당·이자) ÷ 전월 평가금액을 복리 연결(입출금은 수익 아님).<br>
 <b>표시</b> — 상태 점: 초록 양호 · 주황 주의 · 빨강 경고 · 회색 정보(판정 없음). ▲▼는 전 영업일(자금)·전월말(투자) 대비, 단위 억원. 단위 억원(상세 백만원) · 날짜 YYYY-MM-DD.
 </div></div></div>
@@ -1574,8 +1574,12 @@ function renderExec(){
  let rev12=0;for(let i=asofIdx+1;i<=e12i;i++)rev12+=(D.flow.rev[i]||0);
  const net12=(bEnd!=null)?(bEnd-b0):0, out12=net12-rev12;
  const e6i=_mo18.length>=6?_mo18[5].idx:asofIdx;
- let rev6=0,fix6=0;for(let i=asofIdx+1;i<=e6i;i++){rev6+=(D.flow.rev[i]||0);fix6+=-((D.flow.labor[i]||0)+(D.flow.mgmt[i]||0));}
- const cov=fix6>0?Math.round(rev6/fix6*100):null;
+ let rev6=0,buy6=0,fix6=0;for(let i=asofIdx+1;i<=e6i;i++){rev6+=(D.flow.rev[i]||0);buy6+=(D.flow.buy[i]||0);fix6+=-((D.flow.labor[i]||0)+(D.flow.mgmt[i]||0));}
+ const net6=rev6+buy6;
+ const e12c=_mo18.length>=12?_mo18[11].idx:e6i;
+ let rev12c=0,buy12c=0,fix12c=0;for(let i=asofIdx+1;i<=e12c;i++){rev12c+=(D.flow.rev[i]||0);buy12c+=(D.flow.buy[i]||0);fix12c+=-((D.flow.labor[i]||0)+(D.flow.mgmt[i]||0));}
+ const cov=fix6>0?Math.round(net6/fix6*100):null;
+ const cov12=fix12c>0?Math.round((rev12c+buy12c)/fix12c*100):null;
  // 스냅샷·수익률 시계열
  const S2=IVSNAPS.slice().sort((a,b)=>a.date<b.date?-1:1);
  const last13=S2.slice(-13);
@@ -1625,8 +1629,8 @@ function renderExec(){
    '확실·유력 수주의 순유입을 반영한 담보 한계 시점.',
    (ext!=null&&ext>0?'수주 확보 시 '+ext+'개월 연장 — 입금 일정 관리가 곧 자금 관리.':'수주 반영에도 시점 동일 — 입금 일정 전진(선금 조건) 협상 필요.'))},
   cov:{t:'고정비 커버율 '+(cov!=null?cov+'%':'-'),g:'events',b:B2(
-   '향후 6개월 확정 입금 '+eok(rev6)+'억 ÷ 인건비+판관비 '+eok(fix6)+'억.',
-   (cov!=null&&cov>=100?'고정비는 확정 매출로 전액 충당 — 부족의 원인은 구조적 적자가 아닌 프로젝트성 지출·상환의 시점 문제.':'고정비 미충당 구간 — 구조적 갭.'))},
+   '향후 6개월 확정 순매출(매출 '+eok(rev6)+'억 − 매입 '+eok(-buy6)+'억 = '+eok(net6)+'억) ÷ 인건비+판관비 '+eok(fix6)+'억. 매입(외주·라이선스)은 매출에 대응해 빠져나가는 돈이라 차감.',
+   (cov!=null&&cov>=100?'고정비는 확정 순매출로 전액 충당.':'확정분만으로는 고정비 미충당 — 부족분은 신규 수주 또는 자산으로 보전. 12개월 기준 '+(cov12!=null?cov12+'%':'-')+'로 하락(확정 수주 소진) — 신규 수주 확보가 관건.'))},
   val:{t:'투자 평가금액 '+(val/1e8).toLocaleString('ko-KR',{maximumFractionDigits:1})+'억',g:'ihold',b:B2(
    '보유 주식·채권의 '+(IVDATA.priceDate||'')+' 종가 평가액.',
    '전월말 대비 '+(dVal!=null?((dVal>=0?'+':'')+eok(dVal)+'억'):'-')+' · 종목·계좌별 내역은 보유 현황 참조.')},
@@ -1697,7 +1701,7 @@ function renderExec(){
   +K('cash','운영 원화 자금',eok(krwNow)+'억','기준 '+cashDate+'(원장 최신 일자) · 외화 '+eok(fxNow)+'억은 해외 지급 예정',krwNow<1000?'warn':'')
   +K('liq','유동화 필요 시점',liqMo||'18개월 내 없음','지금부터 약 '+(rwNo||'-')+'개월 · 담보 운영의 구조적 한계'+(liqD1?' · 그 전 '+String(liqD1).slice(5)+' 일시 부족 약 '+eok(liqG1)+'억':''),liqMo?'warn':'good')
   +K('liqL','수주 반영 시 유동화',liqMoL||'18개월 내 없음',liqMoL?('확실·유력 수주 입금 가정'+(ext!=null&&ext>0?' · '+ext+'개월 연장':' · 시점 변화 없음')):'18개월 내 유동화 불필요',liqMoL?'warn':'good')
-  +(cov!=null?K('cov','고정비 커버율',cov+'%','6개월 확정 입금 '+eok(rev6)+'억 ÷ 인건비+판관비 '+eok(fix6)+'억',cov>=100?'good':(cov>=70?'warn':'neg')):'')
+  +(cov!=null?K('cov','고정비 커버율',cov+'%','6개월 확정 순매출(매출−매입) '+eok(net6)+'억 ÷ 인건비+판관비 '+eok(fix6)+'억'+(cov12!=null?' · 12개월 '+cov12+'%':''),cov>=100?'good':(cov>=70?'warn':'neg')):'')
  +'</div><div class="xd"></div></div>';
  h+='<div class="sec"><div class="shead"><h3>투자</h3><span class="go" onclick="showTab(\'iyear\')">자세히 ›</span></div><div class="grid g5">'
   +K('val','투자 평가금액',(val/1e8).toLocaleString('ko-KR',{maximumFractionDigits:1})+'억','주식·채권 시가 · '+(IVDATA.priceDate||'')+' 종가','',SP(valSer),DB(dVal,true))
